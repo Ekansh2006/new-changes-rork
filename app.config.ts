@@ -1,0 +1,73 @@
+import 'dotenv/config';
+
+export default {
+  expo: {
+    name: "BEER APP Almost working website v3.2 Clone",
+    slug: "beer-app-home-screen-395g5r1c-oqtho9jn-erxcgld6-w7bwr0kg-vy7m6n9r-b5gxps0n-079pboyx",
+    version: "1.0.0",
+    orientation: "portrait",
+    icon: "./assets/images/icon.png",
+    scheme: "myapp",
+    userInterfaceStyle: "automatic",
+    newArchEnabled: true,
+    splash: {
+      image: "./assets/images/splash-icon.png",
+      resizeMode: "contain",
+      backgroundColor: "#ffffff"
+    },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: "app.rork.beer-app-home-screen-395g5r1c-oqtho9jn-erxcgld6-w7bwr0kg-vy7m6n9r-b5gxps0n-079pboyx",
+      infoPlist: {
+        NSPhotoLibraryUsageDescription: "Allow $(PRODUCT_NAME) to access your photos",
+        NSCameraUsageDescription: "Allow $(PRODUCT_NAME) to access your camera",
+        NSMicrophoneUsageDescription: "Allow $(PRODUCT_NAME) to access your microphone"
+      }
+    },
+    android: {
+      adaptiveIcon: {
+        foregroundImage: "./assets/images/adaptive-icon.png",
+        backgroundColor: "#ffffff"
+      },
+      package: "app.rork.beer-app-home-screen-395g5r1c-oqtho9jn-erxcgld6-w7bwr0kg-vy7m6n9r-b5gxps0n-079pboyx",
+      permissions: [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECORD_AUDIO"
+      ]
+    },
+    web: {
+      favicon: "./assets/images/favicon.png",
+      output: "static"
+    },
+    plugins: [
+      [
+        "expo-router",
+        {
+          origin: "https://beer-app.pages.dev"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          photosPermission: "The app accesses your photos to let you share them with your friends."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          cameraPermission: "Allow $(PRODUCT_NAME) to access your camera",
+          microphonePermission: "Allow $(PRODUCT_NAME) to access your microphone",
+          recordAudioAndroid: true
+        }
+      ]
+    ],
+    experiments: {
+      typedRoutes: true
+    },
+    extra: {
+      googleClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+    }
+  }
+};
