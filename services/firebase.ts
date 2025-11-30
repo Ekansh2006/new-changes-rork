@@ -1,8 +1,7 @@
-import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
-import { GoogleAuthProvider, signInWithCredential, signInWithPopup, User as FirebaseUser, UserCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithCredential, User as FirebaseUser, UserCredential } from 'firebase/auth';
 import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { auth, db } from '@/lib/firebase';
@@ -22,10 +21,6 @@ export interface GoogleAuthData {
   profile?: GoogleProfileData;
 }
 
-const googleProvider = new GoogleAuthProvider();
-googleProvider.addScope('email');
-googleProvider.addScope('profile');
-googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 const googleDiscovery: AuthSession.DiscoveryDocument = {
   authorizationEndpoint: 'https://accounts.google.com/o/oauth2/v2/auth',
@@ -114,10 +109,6 @@ export const uploadImage = async (
 };
 
 export const signInWithGoogle = async (): Promise<UserCredential> => {
-  if (Platform.OS === 'web') {
-    return signInWithPopup(auth, googleProvider);
-  }
-
   const clientId = getGoogleClientId();
   if (!clientId) {
     throw new Error('Missing Google client configuration');
