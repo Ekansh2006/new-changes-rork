@@ -226,10 +226,11 @@ export default function RegistrationScreen() {
       setGoogleProfile(additionalInfo?.profile ? { profile: additionalInfo.profile as GoogleAuthData['profile'] } : null);
       setGoogleModalVisible(true);
     } catch (error: any) {
-      const message = error?.message === 'Google sign-in is only available in web preview.'
-        ? 'Google sign-in works in the web preview. Please open the web link to continue.'
-        : 'Unable to sign up with Google right now. Please try again later.';
-      Alert.alert('Google Sign-Up Failed', message);
+      if (error?.message === 'Google sign-in was dismissed') {
+        return;
+      }
+      const fallbackMessage = error instanceof Error ? error.message : 'Unable to sign up with Google right now. Please try again later.';
+      Alert.alert('Google Sign-Up Failed', fallbackMessage);
     } finally {
       setIsGoogleLoading(false);
     }
