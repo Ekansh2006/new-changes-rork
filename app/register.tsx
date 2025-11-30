@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -13,10 +13,12 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Image } from 'expo-image';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import DateTimePicker, { DateTimePickerEvent, DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Camera, Check, X, User, CalendarDays, LogIn } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { User as FirebaseUser, getAdditionalUserInfo } from 'firebase/auth';
+import { GoogleAuthProvider, User as FirebaseUser, getAdditionalUserInfo, signInWithCredential } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 
 import Colors from '@/constants/colors';
@@ -25,8 +27,8 @@ import SelfieCamera from '@/components/SelfieCamera';
 import GenderSelectionModal from '@/components/GenderSelectionModal';
 import { useUser } from '@/contexts/UserContext';
 import { RegistrationData, GenderOption } from '@/types/profile';
-import { db } from '@/lib/firebase';
-import { signInWithGoogle, handleGoogleAuthResponse, GoogleAuthData } from '@/services/firebase';
+import { auth, db } from '@/lib/firebase';
+import { handleGoogleAuthResponse, GoogleAuthData } from '@/services/firebase';
 
 interface FormErrors {
   name?: string;
@@ -52,6 +54,8 @@ const defaultDob = () => {
   return date;
 };
 
+WebBrowser.maybeCompleteAuthSession();
+
 export default function RegistrationScreen() {
   const insets = useSafeAreaInsets();
   const TAB_BAR_HEIGHT = 60;
@@ -76,6 +80,16 @@ export default function RegistrationScreen() {
   const [googleSaving, setGoogleSaving] = useState<boolean>(false);
   const [googleUser, setGoogleUser] = useState<FirebaseUser | null>(null);
   const [googleProfile, setGoogleProfile] = useState<GoogleAuthData | null>(null);
+  const googleClientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ?? process.env.GOOGLE_CLIENT_ID ?? '';
+  const [googleRequest, googleResponse, promptGoogleAuth] = Google.useAuthRequest({
+    webClientId: googleClientId,
+  });
+
+  useEffect(() => {
+    if (googleResponse?.type) {
+      console.log('[register] Google auth response', googleResponse.type);
+    }
+  }, [googleResponse]);
 
   const clearError = (field: keyof FormErrors) => {
     if (errors[field]) {
@@ -218,17 +232,38 @@ export default function RegistrationScreen() {
   };
 
   const handleGoogleSignUp = async () => {
+    if (!googleClientId) {
+      Alert.alert('Google Sign-Up Unavailable', 'Missing Google client configuration.');
+      return;
+    }
+
+    if (!googleRequest) {
+      Alert.alert('Google Sign-Up Unavailable', 'Google auth is initializing. Please try again.');
+      return;
+    }
+
     try {
       setIsGoogleLoading(true);
-      const credential = await signInWithGoogle();
-      setGoogleUser(credential.user);
-      const additionalInfo = getAdditionalUserInfo(credential);
+      const result = await promptGoogleAuth();
+
+      if (!result) {
+        throw new Error('Google sign-in failed');
+      }
+
+      if (result.type !== 'success' || !result.params?.id_token) {
+        if (result.type === 'dismiss' || result.type === 'cancel') {
+          return;
+        }
+        throw new Error('Google sign-in failed');
+      }
+
+      const credential = GoogleAuthProvider.credential(result.params.id_token);
+      const userCredential = await signInWithCredential(auth, credential);
+      setGoogleUser(userCredential.user);
+      const additionalInfo = getAdditionalUserInfo(userCredential);
       setGoogleProfile(additionalInfo?.profile ? { profile: additionalInfo.profile as GoogleAuthData['profile'] } : null);
       setGoogleModalVisible(true);
     } catch (error: any) {
-      if (error?.message === 'Google sign-in was dismissed') {
-        return;
-      }
       const fallbackMessage = error instanceof Error ? error.message : 'Unable to sign up with Google right now. Please try again later.';
       Alert.alert('Google Sign-Up Failed', fallbackMessage);
     } finally {
@@ -356,7 +391,7 @@ export default function RegistrationScreen() {
             style={styles.googleButton}
             onPress={handleGoogleSignUp}
             activeOpacity={0.85}
-            disabled={isGoogleLoading}
+            disabled={isGoogleLoading || !googleRequest}
             testID="google-signup-button"
           >
             <View style={styles.googleButtonLeft}>
