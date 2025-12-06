@@ -1,7 +1,8 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
-import { Profile, Comment } from '@/types/profile';
-import { db } from '@/lib/firebase';
+import { Profile, Comment, GenderOption } from '@/types/profile';
+import { auth, db } from '@/lib/firebase';
+import { getProfilesByGender } from '@/lib/profileFilters';
 import {
   addDoc,
   collection,
@@ -14,6 +15,7 @@ import {
   setDoc,
 } from 'firebase/firestore';
 import { useUser } from '@/contexts/UserContext';
+import { useGenderFilter } from '@/contexts/GenderFilterContext';
 
 export const [ProfilesProvider, useProfiles] = createContextHook(() => {
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -23,7 +25,16 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
   const [localVotes, setLocalVotes] = useState<Record<string, 'green' | 'red' | null>>({});
   const [voteCountsByProfile, setVoteCountsByProfile] = useState<Record<string, { green: number; red: number; userVote: 'green' | 'red' | null }>>({});
   const commentUnsubsRef = useRef<Record<string, () => void>>({});
-  const { isUserApproved, user } = useUser();
+  const { isUserApproved, user, userGender } = useUser();
+  const { filterGender, setUserGenderFilter, clearFilter } = useGenderFilter();
+
+  useEffect(() => {
+    if (userGender) {
+      setUserGenderFilter(userGender);
+    } else {
+      clearFilter();
+    }
+  }, [userGender, setUserGenderFilter, clearFilter]);
 
   useEffect(() => {
     const tearDownComments = () => {
@@ -41,12 +52,16 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
       return;
     }
 
+    if (!filterGender) {
+      setProfiles([]);
+      setIsLoading(false);
+      tearDownComments();
+      return;
+    }
+
     setIsLoading(true);
-    const profilesRef = collection(db, 'profiles');
-    const q = query(
-      profilesRef,
-      orderBy('createdAt', 'desc')
-    );
+    const genderedQuery = getProfilesByGender(filterGender);
+    const q = query(genderedQuery, orderBy('createdAt', 'desc'));
 
     const unsub = onSnapshot(
       q,
@@ -54,6 +69,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
         const next: Profile[] = snap.docs.map((d) => {
           const data = d.data() as any;
           const createdAtTs = data.createdAt as Timestamp | undefined;
+          const creatorGender = data.creatorGender ? String(data.creatorGender).toLowerCase() as GenderOption : undefined;
           const base: Profile = {
             id: d.id,
             name: String(data.name ?? ''),
@@ -64,6 +80,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
             profileImageThumbUrl: data.profileImageThumbUrl ? String(data.profileImageThumbUrl) : undefined,
             uploaderUserId: String(data.uploaderUserId ?? data.userId ?? ''),
             uploaderUsername: String(data.uploaderUsername ?? ''),
+            creatorGender,
             greenFlags: Number(data.greenFlags ?? 0),
             redFlags: Number(data.redFlags ?? 0),
             commentCount: Number(data.commentCount ?? 0),
@@ -71,14 +88,8 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
             userVote: null,
             createdAt: createdAtTs ? createdAtTs.toDate() : new Date(),
             approvalStatus: (data.approvalStatus as Profile['approvalStatus']) ?? 'approved',
-          } as Profile;
-          const attachedComments = commentsByProfile[d.id] ?? [];
-          return {
-            ...base,
-            comments: attachedComments,
-            commentCount: attachedComments.length || base.commentCount,
-            userVote: localVotes[d.id] ?? null,
-          } as Profile;
+          };
+          return base;
         });
         setProfiles(next);
         setIsLoading(false);
@@ -120,7 +131,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
               let green = 0;
               let red = 0;
               let userVote: 'green' | 'red' | null = null;
-              const authUid = (require('@/lib/firebase') as typeof import('@/lib/firebase')).auth.currentUser?.uid ?? null;
+              const authUid = auth.currentUser?.uid ?? null;
               vsnap.docs.forEach((vd) => {
                 const vdata = vd.data() as any;
                 const type = String(vdata.type ?? '');
@@ -156,7 +167,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
       try { unsub(); } catch {}
       tearDownComments();
     };
-  }, [isUserApproved]);
+  }, [isUserApproved, filterGender]);
 
   const addProfile = useCallback(
     async (
@@ -166,6 +177,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
       >
     ): Promise<string> => {
       try {
+        const normalizedCreatorGender = (newProfile.creatorGender ?? userGender ?? 'other').toString().toLowerCase();
         const ref = await addDoc(collection(db, 'profiles'), {
           name: newProfile.name,
           age: newProfile.age,
@@ -175,6 +187,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
           profileImageThumbUrl: newProfile.profileImageThumbUrl ?? null,
           uploaderUserId: newProfile.uploaderUserId,
           uploaderUsername: newProfile.uploaderUsername,
+          creatorGender: normalizedCreatorGender,
           // Add userId for rules compatibility
           userId: newProfile.uploaderUserId,
           greenFlags: 0,
@@ -190,12 +203,11 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
         throw e;
       }
     },
-    []
+    [userGender]
   );
 
   const addComment = useCallback(async (profileId: string, commentText: string) => {
     try {
-      const { auth } = await import('@/lib/firebase');
       const uid = auth.currentUser?.uid ?? 'anon';
       const generatedUsername = (user?.username ?? auth.currentUser?.displayName ?? '').toString();
       const usernameToSave = generatedUsername && generatedUsername.length > 0 ? generatedUsername : (uid !== 'anon' ? `user_${uid.slice(0,6)}` : 'user');
@@ -214,7 +226,6 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
 
   const vote = useCallback(async (profileId: string, voteType: 'green' | 'red') => {
     try {
-      const { auth } = await import('@/lib/firebase');
       const uid = auth.currentUser?.uid;
       const username = auth.currentUser?.displayName ?? 'user';
       if (!uid) {
@@ -265,7 +276,7 @@ export const [ProfilesProvider, useProfiles] = createContextHook(() => {
         userVote: (votes?.userVote ?? null) ?? (localVotes[p.id] ?? p.userVote),
       };
     });
-  }, [profiles, commentsByProfile, localVotes]);
+  }, [profiles, commentsByProfile, localVotes, voteCountsByProfile]);
 
   return {
     profiles: mergedProfiles,

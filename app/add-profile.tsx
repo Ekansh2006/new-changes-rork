@@ -229,6 +229,11 @@ export default function AddProfileScreen() {
       Alert.alert('Login Required', 'Please login to continue'); 
       return; 
     }
+
+    if (!user.gender) {
+      Alert.alert('Profile Incomplete', 'Please set your gender before creating a profile.');
+      return;
+    }
     
     // Check if user is verified (only verified users can create profiles)
     if (!user.username || user.status !== 'approved_username_assigned') {
@@ -268,6 +273,7 @@ export default function AddProfileScreen() {
         const dataUrl = `data:image/jpeg;base64,${sanitizedData.imageBase64}`;
         const imageUrl = await uploadImageToCloudinary(dataUrl);
         
+        const normalizedCreatorGender = user.gender?.toLowerCase() ?? 'other';
         await addDoc(collection(db, 'profiles'), {
           name: sanitizedData.name,
           age: sanitizedData.age,
@@ -276,6 +282,7 @@ export default function AddProfileScreen() {
           profileImageUrl: imageUrl,
           uploaderUserId: sanitizedData.userId,
           uploaderUsername: user.username ?? '',
+          creatorGender: normalizedCreatorGender,
           greenFlags: 0,
           redFlags: 0,
           commentCount: 0,

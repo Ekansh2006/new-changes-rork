@@ -117,6 +117,7 @@ export const createProfileProcedure = publicProcedure
       }
 
       const userData = userDoc.data();
+      const creatorGender = typeof userData?.gender === 'string' ? userData.gender.toLowerCase() : 'other';
       
       // Verify user is approved and has username (only verified users can create profiles)
       if (userData?.status !== 'approved_username_assigned' || !userData?.username) {
@@ -163,6 +164,7 @@ export const createProfileProcedure = publicProcedure
         uploaderUserId: input.userId,
         uploaderUsername: userData.username,
         uploaderEmail: userData.email, // For admin tracking
+        creatorGender,
         greenFlags: 0,
         redFlags: 0,
         commentCount: 0,

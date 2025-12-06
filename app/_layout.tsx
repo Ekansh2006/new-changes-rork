@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
 import { ProfilesProvider } from "@/contexts/ProfilesContext";
 import { UserProvider, useUser } from "@/contexts/UserContext";
 import { ImageContext } from "@/contexts/ImageContext";
+import { GenderFilterProvider } from "@/contexts/GenderFilterContext";
 import Colors from "@/constants/colors";
 import { useUserRole } from "@/lib/userRoles";
 
@@ -133,13 +134,15 @@ export default function RootLayout() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <UserProvider>
-          <ProfilesProvider>
-            <ImageContext>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <AuthGate />
-              </GestureHandlerRootView>
-            </ImageContext>
-          </ProfilesProvider>
+          <GenderFilterProvider>
+            <ProfilesProvider>
+              <ImageContext>
+                <GestureHandlerRootView style={{ flex: 1 }}>
+                  <AuthGate />
+                </GestureHandlerRootView>
+              </ImageContext>
+            </ProfilesProvider>
+          </GenderFilterProvider>
         </UserProvider>
       </QueryClientProvider>
     </ErrorBoundary>

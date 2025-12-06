@@ -16,6 +16,7 @@ export interface Profile {
   profileImageThumbUrl?: string;
   uploaderUserId: string;
   uploaderUsername: string;
+  creatorGender?: GenderOption;
   greenFlags: number;
   redFlags: number;
   commentCount: number;
