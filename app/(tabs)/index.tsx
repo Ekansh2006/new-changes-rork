@@ -26,6 +26,61 @@ export default function HomeScreen() {
   const { profiles, isLoading, refreshing, addComment, vote, refresh } = useProfiles();
   const { user, isLoading: userLoading, isUserApproved, isUserPending } = useUser();
 
+  const genderIndicator = useMemo(() => {
+    if (!user?.gender) {
+      return null;
+    }
+    if (user.gender === 'male') {
+      return {
+        emoji: '🧑',
+        title: 'Viewing Male Community',
+        subtitle: 'Only male-created profiles are visible',
+      } as const;
+    }
+    if (user.gender === 'female') {
+      return {
+        emoji: '👩',
+        title: 'Viewing Female Community',
+        subtitle: 'Only female-created profiles are visible',
+      } as const;
+    }
+    return {
+      emoji: '👥',
+      title: 'Viewing LGBTQ🏳️‍🌈 Community',
+      subtitle: 'Only LGBTQ🏳️‍🌈 creators are visible',
+    } as const;
+  }, [user?.gender]);
+
+  const renderListHeader = useCallback(() => {
+    if (!user) {
+      return null;
+    }
+    return (
+      <View style={styles.feedIntro}>
+        {genderIndicator && (
+          <View style={styles.contextBanner} testID="gender-context-banner">
+            <Text style={styles.contextEmoji}>{genderIndicator.emoji}</Text>
+            <View style={styles.contextCopy}>
+              <Text style={styles.contextTitle}>{genderIndicator.title}</Text>
+              <Text style={styles.contextSubtitle}>{genderIndicator.subtitle}</Text>
+            </View>
+          </View>
+        )}
+        <View style={styles.statsCard} testID="user-stats-card">
+          <View style={styles.statsRow}>
+            <Text style={styles.statsLabel}>Gender</Text>
+            <Text style={styles.statsValue}>{user.gender ?? '—'}</Text>
+          </View>
+          <View style={styles.statsDivider} />
+          <View style={styles.statsRow}>
+            <Text style={styles.statsLabel}>Auth Method</Text>
+            <Text style={styles.statsValue}>{user.authMethod ?? 'unknown'}</Text>
+          </View>
+        </View>
+      </View>
+    );
+  }, [genderIndicator, user]);
+
   const handleRegister = () => {
     console.log('[Landing] Create Account pressed');
     router.push('/register');
@@ -162,6 +217,7 @@ export default function HomeScreen() {
         testID="profiles-list"
         data={profiles}
         renderItem={renderProfile}
+        ListHeaderComponent={renderListHeader}
         keyExtractor={keyExtractor}
         numColumns={1}
         contentContainerStyle={[styles.listContainer, { paddingBottom: insets.bottom + TAB_BAR_HEIGHT }]}
@@ -232,12 +288,77 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+    gap: 16,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     backgroundColor: Colors.light.background,
+  },
+  feedIntro: {
+    gap: 12,
+    paddingBottom: 8,
+  },
+  contextBanner: {
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 12,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Colors.light.cardBackground,
+  },
+  contextEmoji: {
+    fontSize: 32,
+  },
+  contextCopy: {
+    flex: 1,
+    gap: 4,
+  },
+  contextTitle: {
+    fontSize: 18,
+    fontWeight: '900' as const,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
+    color: Colors.light.text,
+  },
+  contextSubtitle: {
+    fontSize: 14,
+    color: Colors.light.tabIconDefault,
+    fontWeight: '900' as const,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
+  },
+  statsCard: {
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 12,
+    padding: 16,
+    backgroundColor: Colors.light.cardBackground,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  statsLabel: {
+    fontSize: 14,
+    color: Colors.light.tabIconDefault,
+    fontWeight: '900' as const,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
+    textTransform: 'uppercase',
+  },
+  statsValue: {
+    fontSize: 16,
+    color: Colors.light.text,
+    fontWeight: '900' as const,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
+  },
+  statsDivider: {
+    height: 1,
+    backgroundColor: '#000000',
+    marginVertical: 12,
+    opacity: 0.2,
   },
   registerButton: {
     flexDirection: 'row',

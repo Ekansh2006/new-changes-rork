@@ -44,6 +44,19 @@ const ProfileCard = memo(function ProfileCard({
     }
     return profile.comments.slice(0, 2);
   }, [profile.comments, isCommentsExpanded]);
+
+  const creatorGenderLabel = useMemo(() => {
+    if (!profile.creatorGender) {
+      return null;
+    }
+    if (profile.creatorGender === 'male') {
+      return '🧑 Male Creator';
+    }
+    if (profile.creatorGender === 'female') {
+      return '👩 Female Creator';
+    }
+    return '👥 LGBTQ🏳️‍🌈 Creator';
+  }, [profile.creatorGender]);
   
   const formatTimestamp = (timestamp: Date) => {
     const now = new Date();
@@ -160,6 +173,11 @@ const ProfileCard = memo(function ProfileCard({
 
       {/* Description Section */}
       <View style={styles.descriptionSection}>
+        {creatorGenderLabel && (
+          <View style={styles.genderBadge} testID="creator-gender-badge">
+            <Text style={styles.genderBadgeText}>{creatorGenderLabel}</Text>
+          </View>
+        )}
         <Text style={styles.descriptionText}>
           {displayDescription.toLowerCase()}
         </Text>
@@ -352,6 +370,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#000000",
     backgroundColor: Colors.light.cardBackground,
+    gap: 8,
   },
   descriptionText: {
     fontSize: 14,
@@ -360,6 +379,22 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
     lineHeight: 19.6,
     marginBottom: 4,
+  },
+  genderBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: '#000000',
+    backgroundColor: '#f5f2eb',
+  },
+  genderBadgeText: {
+    fontSize: 12,
+    fontWeight: '900' as const,
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
+    color: Colors.light.text,
+    textTransform: 'lowercase' as const,
   },
   readMoreButton: {
     alignSelf: 'flex-start',

@@ -23,6 +23,19 @@ service cloud.firestore {
              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.status in ['approved', 'approved_username_assigned'];
     }
 
+    function currentUserGender() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        ? get(/databases/$(database)/documents/users/$(request.auth.uid)).data.gender
+        : null;
+    }
+
+    function matchesCreatorGender() {
+      return isAuthenticated() &&
+             resource.data.creatorGender != null &&
+             currentUserGender() != null &&
+             lower(currentUserGender()) == lower(resource.data.creatorGender);
+    }
+
     // Admin collection - only admin can read/write
     match /admins/{adminId} {
       allow read, write: if isAdmin();
@@ -35,24 +48,14 @@ service cloud.firestore {
 
     // Profiles collection
     match /profiles/{profileId} {
-      // Anyone can read profiles
-      allow read: if true;
+      // Profiles only visible to same-gender users (admins bypass)
+      allow read: if matchesCreatorGender() || isAdmin();
       
-      // Only approved users can create profiles
-      allow create: if isApprovedUser() &&
-                   request.auth.uid == request.resource.data.userId;
+      // Create profiles (any authenticated user)
+      allow create: if isAuthenticated();
       
-      // Users can update their own profiles (full update, excluding vote fields)
-      allow update: if isApprovedUser() &&
-                   request.auth.uid == resource.data.userId &&
-                   !request.resource.data.diff(resource.data).affectedKeys().hasAny(['greenFlags', 'redFlags']);
-      
-      // Any authenticated user can vote (update greenFlags/redFlags only)
-      allow update: if isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['greenFlags', 'redFlags']);
-      
-      // Users can delete their own profiles, admins can delete any
-      allow delete: if (isApprovedUser() && request.auth.uid == resource.data.userId) ||
-                   isAdmin();
+      // Update/Delete only own profiles (admins bypass)
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
       
       // Subcollection: comments under each profile
       match /comments/{commentId} {

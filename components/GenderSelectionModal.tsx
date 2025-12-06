@@ -14,7 +14,7 @@ interface GenderSelectionModalProps {
 const options: { label: string; value: GenderOption }[] = [
   { label: 'Male', value: 'male' },
   { label: 'Female', value: 'female' },
-  { label: 'Prefer not to say', value: 'other' },
+  { label: 'LGBTQ🏳️‍🌈', value: 'other' },
 ];
 
 export default function GenderSelectionModal({ isVisible, onGenderSelected, isLoading = false }: GenderSelectionModalProps) {

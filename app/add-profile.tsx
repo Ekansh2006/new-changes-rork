@@ -74,6 +74,19 @@ export default function AddProfileScreen() {
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  const visibilityAudienceLabel = useMemo(() => {
+    if (!user?.gender) {
+      return null;
+    }
+    if (user.gender === 'male') {
+      return 'male';
+    }
+    if (user.gender === 'female') {
+      return 'female';
+    }
+    return 'LGBTQ🏳️‍🌈';
+  }, [user?.gender]);
+
   const validate = useCallback((): boolean => {
     const next: FormErrors = {};
     
@@ -282,16 +295,22 @@ export default function AddProfileScreen() {
           profileImageUrl: imageUrl,
           uploaderUserId: sanitizedData.userId,
           uploaderUsername: user.username ?? '',
+          userId: sanitizedData.userId,
           creatorGender: normalizedCreatorGender,
           greenFlags: 0,
           redFlags: 0,
           commentCount: 0,
           approvalStatus: 'pending',
           createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
         });
         
         console.log('Profile created successfully');
         setState({ step: 'success', message: 'Profile created successfully!' });
+        Alert.alert(
+          'Success',
+          `Profile created! Visible to ${visibilityAudienceLabel ?? 'matched'} users only.`
+        );
         
         // Clear form and redirect to home page
         setTimeout(() => {
@@ -307,7 +326,7 @@ export default function AddProfileScreen() {
         setIsSubmitting(false);
       }
     })();
-  }, [user, validate, imageBase64, form, clearForm]);
+  }, [user, validate, imageBase64, form, clearForm, visibilityAudienceLabel]);
 
   const disabled = useMemo(() => state.step === 'picking' || isSubmitting, [state.step, isSubmitting]);
 
@@ -322,6 +341,15 @@ export default function AddProfileScreen() {
       <ScrollView contentContainerStyle={styles.container} testID="add-profile">
         <Text style={styles.title}>Create Profile</Text>
         <Text style={styles.subtitle}>Share basic info and a clear photo. Only verified users can create profiles.</Text>
+
+        {visibilityAudienceLabel && (
+          <View style={styles.visibilityNotice}>
+            <Text style={styles.visibilityLabel}>Visibility notice</Text>
+            <Text style={styles.visibilityText}>
+              This profile will only be visible to {visibilityAudienceLabel} users.
+            </Text>
+          </View>
+        )}
         
         {user && user.status !== 'approved_username_assigned' && (
           <View style={styles.warningBox}>
@@ -448,6 +476,25 @@ const styles = StyleSheet.create({
   container: { padding: 16, backgroundColor: Colors.light.background },
   title: { fontSize: 22, fontWeight: '700', color: Colors.light.text, marginBottom: 6 },
   subtitle: { fontSize: 13, color: Colors.light.tabIconDefault, marginBottom: 16 },
+  visibilityNotice: {
+    borderWidth: 1,
+    borderColor: '#000000',
+    borderRadius: 12,
+    padding: 12,
+    backgroundColor: '#f5f2eb',
+    marginBottom: 16,
+  },
+  visibilityLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.light.text,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+  },
+  visibilityText: {
+    fontSize: 14,
+    color: Colors.light.text,
+  },
   photoBox: { width: '100%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: '#0f172a10', borderWidth: 1, borderColor: '#e2e8f0' },
   photo: { width: '100%', height: '100%' },
   photoPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
