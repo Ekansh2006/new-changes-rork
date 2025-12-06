@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -27,27 +27,14 @@ import {
 import Colors from '@/constants/colors';
 import { useUser } from '@/contexts/UserContext';
 import { useProfiles } from '@/contexts/ProfilesContext';
-import { GenderOption } from '@/types/profile';
+
 import { auth, deleteUserAccountData } from '@/services/firebase';
 
-const genderChoices: { value: GenderOption; label: string; helper: string; emoji: string }[] = [
-  { value: 'male', label: 'Male', helper: 'Connect with verified male creators', emoji: '🧑' },
-  { value: 'female', label: 'Female', helper: 'Explore women-led tasting notes', emoji: '👩' },
-  { value: 'other', label: 'LGBTQ🏳️‍🌈', helper: 'Celebrate inclusive community drops', emoji: '👥' },
-];
-
 export default function SettingsScreen() {
-  const { user, logout, setUserGender } = useUser();
+  const { user, logout } = useUser();
   const { profiles } = useProfiles();
-  const [editingGender, setEditingGender] = useState<boolean>(false);
-  const [selectedGender, setSelectedGender] = useState<GenderOption | undefined>(user?.gender);
   const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(true);
-  const [genderSaving, setGenderSaving] = useState<boolean>(false);
   const [accountAction, setAccountAction] = useState<'logout' | 'delete' | null>(null);
-
-  useEffect(() => {
-    setSelectedGender(user?.gender);
-  }, [user?.gender]);
 
   const analytics = useMemo(() => {
     const totalProfiles = profiles.length;
@@ -71,31 +58,18 @@ export default function SettingsScreen() {
         subline: 'Pick a gender to unlock community content',
       } as const;
     }
-    const activeOption = genderChoices.find((choice) => choice.value === user.gender);
+    const presets: Record<string, { emoji: string; label: string; copy: string }> = {
+      male: { emoji: '🧑', label: 'Male', copy: 'male creators' },
+      female: { emoji: '👩', label: 'Female', copy: 'female creators' },
+      other: { emoji: '👥', label: 'LGBTQ🏳️‍🌈', copy: 'inclusive creators' },
+    };
+    const active = presets[user.gender] ?? { emoji: '🍻', label: 'Community', copy: 'selected creators' };
     return {
-      emoji: activeOption?.emoji ?? '🍻',
-      headline: `${activeOption?.label ?? 'Community'} feed unlocked`,
-      subline: `Your gallery is curated for ${activeOption?.label ?? 'selected'} creators`,
+      emoji: active.emoji,
+      headline: `${active.label} feed locked in`,
+      subline: `Your gallery is curated for ${active.copy}`,
     } as const;
   }, [user?.gender]);
-
-  const handleGenderUpdate = useCallback(async () => {
-    if (!user?.id || !selectedGender) {
-      Alert.alert('Select Gender', 'Please choose a gender before continuing.');
-      return;
-    }
-    setGenderSaving(true);
-    try {
-      await setUserGender(selectedGender);
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setEditingGender(false);
-      Alert.alert('Gender updated', 'Gallery will refresh with your new community.');
-    } catch (error: any) {
-      Alert.alert('Update failed', error?.message ?? 'Unable to update gender.');
-    } finally {
-      setGenderSaving(false);
-    }
-  }, [selectedGender, setUserGender, user?.id]);
 
   const confirmLogout = useCallback(() => {
     Alert.alert('Log out', 'Are you sure you want to leave the beer lounge?', [
@@ -229,63 +203,22 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.card} testID="gender-settings-card">
-        <View style={styles.cardHeader}>
+        <View style={styles.cardHeaderLocked}>
           <Text style={styles.sectionTitle}>gender & community</Text>
-          <TouchableOpacity
-            onPress={() => setEditingGender((prev) => !prev)}
-            style={styles.editPill}
-            testID="toggle-gender-edit"
-          >
-            <PenSquare size={16} color="#0d0d0d" />
-            <Text style={styles.editPillText}>{editingGender ? 'cancel' : 'edit'}</Text>
-          </TouchableOpacity>
+          <View style={styles.lockedPill}>
+            <PenSquare size={14} color="#7f1d1d" />
+            <Text style={styles.lockedText}>locked</Text>
+          </View>
         </View>
-        {!editingGender && (
-          <View style={styles.currentGender}>
-            <Text style={styles.currentGenderLabel}>current gender</Text>
-            <Text style={styles.currentGenderValue}>
-              {user.gender ? `${communityCopy.emoji} ${user.gender}` : 'not selected'}
-            </Text>
-            <Text style={styles.currentGenderNote}>Gallery shows {user.gender ?? 'selected'} creators only.</Text>
-          </View>
-        )}
-        {editingGender && (
-          <View style={styles.genderGrid} testID="gender-options">
-            {genderChoices.map((choice) => {
-              const isActive = selectedGender === choice.value;
-              return (
-                <TouchableOpacity
-                  key={choice.value}
-                  style={[styles.genderOption, isActive && styles.genderOptionActive]}
-                  onPress={() => {
-                    setSelectedGender(choice.value);
-                    Haptics.selectionAsync();
-                  }}
-                  activeOpacity={0.85}
-                  testID={`gender-option-${choice.value}`}
-                >
-                  <Text style={styles.genderEmoji}>{choice.emoji}</Text>
-                  <View style={styles.genderCopy}>
-                    <Text style={styles.genderLabel}>{choice.label}</Text>
-                    <Text style={styles.genderHelper}>{choice.helper}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
-            <TouchableOpacity
-              style={[styles.ctaButton, styles.primaryButton]}
-              onPress={handleGenderUpdate}
-              disabled={genderSaving}
-              testID="update-gender-button"
-            >
-              {genderSaving ? (
-                <ActivityIndicator color="#fefcf4" />
-              ) : (
-                <Text style={styles.primaryText}>update gender</Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
+        <View style={styles.currentGender}>
+          <Text style={styles.currentGenderLabel}>current gender</Text>
+          <Text style={styles.currentGenderValue}>
+            {user.gender ? `${communityCopy.emoji} ${user.gender}` : 'not selected'}
+          </Text>
+          <Text style={styles.currentGenderNote}>
+            Gender is sealed after verification. Contact support for changes.
+          </Text>
+        </View>
       </View>
 
       <View style={styles.card} testID="preferences-card">
@@ -459,26 +392,26 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
     fontWeight: '700',
   },
-  cardHeader: {
+  cardHeaderLocked: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  editPill: {
+  lockedPill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 999,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#fee2e2',
     borderWidth: 1,
-    borderColor: '#0d0d0d',
+    borderColor: '#7f1d1d',
   },
-  editPillText: {
+  lockedText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0d0d0d',
+    color: '#7f1d1d',
     textTransform: 'uppercase',
   },
   currentGender: {
@@ -495,37 +428,6 @@ const styles = StyleSheet.create({
     color: Colors.light.text,
   },
   currentGenderNote: {
-    fontSize: 13,
-    color: '#6b7280',
-  },
-  genderGrid: {
-    gap: 12,
-  },
-  genderOption: {
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 16,
-    padding: 16,
-    flexDirection: 'row',
-    gap: 12,
-    alignItems: 'center',
-  },
-  genderOptionActive: {
-    borderColor: '#0d0d0d',
-    backgroundColor: '#0d0d0d08',
-  },
-  genderEmoji: {
-    fontSize: 28,
-  },
-  genderCopy: {
-    flex: 1,
-  },
-  genderLabel: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: Colors.light.text,
-  },
-  genderHelper: {
     fontSize: 13,
     color: '#6b7280',
   },
