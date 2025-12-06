@@ -1,7 +1,7 @@
-import { doc, getDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, serverTimestamp, setDoc, where, writeBatch } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 
-import { db } from '@/lib/firebase';
+import { auth, db } from '@/lib/firebase';
 import { CLOUDINARY_CONFIG } from '@/lib/cloudinary';
 import { GenderOption } from '@/types/profile';
 
@@ -102,3 +102,42 @@ export const handleGoogleAuthResponse = async (
 
   await setDoc(userRef, payload, { merge: true });
 };
+
+export const updateUserGender = async (userId: string, gender: GenderOption) => {
+  if (!userId) {
+    throw new Error('Missing user identifier');
+  }
+  await setDoc(
+    doc(db, 'users', userId),
+    {
+      gender,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+};
+
+export const deleteUserAccountData = async (userId: string) => {
+  if (!userId) {
+    throw new Error('Missing user identifier');
+  }
+  const batch = writeBatch(db);
+  const userRef = doc(db, 'users', userId);
+  batch.delete(userRef);
+
+  const profilesByUserId = await getDocs(query(collection(db, 'profiles'), where('userId', '==', userId)));
+  profilesByUserId.forEach((profileDoc) => {
+    batch.delete(profileDoc.ref);
+  });
+
+  const profilesByUploader = await getDocs(query(collection(db, 'profiles'), where('uploaderUserId', '==', userId)));
+  profilesByUploader.forEach((profileDoc) => {
+    if (!profilesByUserId.docs.find((docSnap) => docSnap.id === profileDoc.id)) {
+      batch.delete(profileDoc.ref);
+    }
+  });
+
+  await batch.commit();
+};
+
+export { auth };

@@ -5,6 +5,8 @@ import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, updateProfile, User as FirebaseUser } from 'firebase/auth';
 import { doc, getDoc, onSnapshot, serverTimestamp, setDoc, Timestamp } from 'firebase/firestore';
 
+import { updateUserGender } from '@/services/firebase';
+
 export const [UserProvider, useUser] = createContextHook(() => {
   const [user, setUser] = useState<AppUser | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -233,13 +235,14 @@ export const [UserProvider, useUser] = createContextHook(() => {
   }, [user]);
 
   const setUserGender = useCallback(async (nextGender: GenderOption) => {
-    if (!user) return;
+    if (!user?.id) return;
     try {
-      await setDoc(doc(db, 'users', user.id), { gender: nextGender }, { merge: true });
+      await updateUserGender(user.id, nextGender);
       setUser(prev => prev ? { ...prev, gender: nextGender } : prev);
       setUserGenderState(nextGender);
     } catch (error) {
       console.error('[user] Error updating gender:', error);
+      throw error;
     }
   }, [user]);
 

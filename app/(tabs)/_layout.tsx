@@ -1,5 +1,5 @@
 import { Tabs } from "expo-router";
-import { Beer, Plus, Search } from "lucide-react-native";
+import { Beer, Plus, Search, Settings } from "lucide-react-native";
 import React, { useMemo } from "react";
 import { Platform } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -59,6 +59,14 @@ export default function TabLayout() {
         options={{
           title: "search",
           tabBarIcon: ({ color, size }) => <Search color={color} size={size} />,
+          headerShown: false,
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "settings",
+          tabBarIcon: ({ color, size }) => <Settings color={color} size={size} />,
           headerShown: false,
         }}
       />
